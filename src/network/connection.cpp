@@ -21,6 +21,8 @@
 	THE SOFTWARE.
 */
 
+#include <WiFi.h>
+
 #include "connection.h"
 
 #include "GlobalVars.h"

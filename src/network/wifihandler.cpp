@@ -27,6 +27,9 @@
 #include "esp_wifi.h"
 #endif
 
+#include "wifihandler.h"
+#include <WiFi.h>
+
 unsigned long lastWifiReportTime = 0;
 unsigned long wifiConnectionTimeout = millis();
 bool isWifiConnected = false;

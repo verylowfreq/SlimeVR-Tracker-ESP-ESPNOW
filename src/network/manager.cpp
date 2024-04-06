@@ -21,20 +21,60 @@
 	THE SOFTWARE.
 */
 #include "manager.h"
+#include "esp_now.h"
 
 #include "GlobalVars.h"
 
 namespace SlimeVR {
 namespace Network {
 
-void Manager::setup() { ::WiFiNetwork::setUp(); }
+void Manager::setup() {
+#ifndef USE_ESPNOW
+	::WiFiNetwork::setUp();
+#else
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  WiFi.setSleep(false);
+
+  if (esp_now_init() == ESP_OK) {
+    Serial.println("ESPNow Init Success");
+  } else {
+    Serial.println("ESPNow Init Failed");
+    ESP.restart();
+  }
+  
+  esp_now_peer_info_t slave;
+    // マルチキャスト用Slave登録
+  memset(&slave, 0, sizeof(slave));
+  for (int i = 0; i < 6; ++i) {
+    slave.peer_addr[i] = (uint8_t)0xff;
+  }
+  
+  esp_err_t addStatus = esp_now_add_peer(&slave);
+  if (addStatus == ESP_OK) {
+    // Pair success
+    Serial.println("Pair success");
+  }
+  // ESP-NOWコールバック登録
+  // esp_now_register_send_cb(OnDataSent);
+//   esp_now_register_recv_cb(OnDataRecv);
+
+	m_IsConnected = true;
+#endif
+}
 
 void Manager::update() {
+#ifndef USE_ESPNOW
 	WiFiNetwork::upkeep();
+#endif
 
 	auto wasConnected = m_IsConnected;
 
+#ifndef USE_ESPNOW
 	m_IsConnected = ::WiFiNetwork::isConnected();
+#endif
 
 	if (!m_IsConnected) {
 		return;

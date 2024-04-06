@@ -38,7 +38,8 @@ SlimeVR::LEDManager ledManager(LED_PIN);
 SlimeVR::Status::StatusManager statusManager;
 SlimeVR::Configuration::Configuration configuration;
 SlimeVR::Network::Manager networkManager;
-SlimeVR::Network::Connection networkConnection;
+// SlimeVR::Network::Connection networkConnection;
+SlimeVR::Network::ConnectionESPNOW networkConnection;
 
 int sensorToCalibrate = -1;
 bool blinking = false;

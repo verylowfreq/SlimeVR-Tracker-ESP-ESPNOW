@@ -28,7 +28,11 @@
 
 #include "LEDManager.h"
 #include "configuration/Configuration.h"
+#ifndef USE_ESPNOW
 #include "network/connection.h"
+#else
+#include "network/connection_espnow.h"
+#endif
 #include "network/manager.h"
 #include "sensors/SensorManager.h"
 #include "status/StatusManager.h"
@@ -39,6 +43,10 @@ extern SlimeVR::Status::StatusManager statusManager;
 extern SlimeVR::Configuration::Configuration configuration;
 extern SlimeVR::Sensors::SensorManager sensorManager;
 extern SlimeVR::Network::Manager networkManager;
+#ifndef USE_ESPNOW
 extern SlimeVR::Network::Connection networkConnection;
+#else
+extern SlimeVR::Network::ConnectionESPNOW networkConnection;
+#endif
 
 #endif
