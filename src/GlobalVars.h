@@ -46,7 +46,9 @@ extern SlimeVR::Network::Manager networkManager;
 #ifndef USE_ESPNOW
 extern SlimeVR::Network::Connection networkConnection;
 #else
+#include <Preferences.h>
 extern SlimeVR::Network::ConnectionESPNOW networkConnection;
+extern Preferences preferences;
 #endif
 
 #endif

@@ -31,7 +31,45 @@
 
 #if ESP32
     #include "nvs_flash.h"
+    // For ESP-NOW mode. Peer address is saved in Preferences (Non-volatile config store)
+    #include <Preferences.h>
+    Preferences preferences;
 #endif
+
+static bool parse_macaddr_input(const char* input, uint8_t* dst) {
+    const char* end = input + strlen(input);
+    int digit_cnt = 0;
+    while (input != end && digit_cnt < 12) {
+        uint8_t val;
+        if ('A' <= *input && *input <= 'F') {
+            val = *input - 'A' + 0xa;
+
+        } else if ('a' <= *input && *input <= 'f') {
+            val = *input - 'a' + 0xa;
+
+        } else if ('0' <= *input && *input <= '9') {
+            val = *input - '0';
+        } else if (*input == '-' || *input == ':') {
+            // Skip
+            input++;
+            continue;
+        } else {
+            // Failed on invalid char
+            return false;
+        }
+        // val has valid value
+
+        if (digit_cnt & 0x01) {
+            *dst |= val & 0x0f;
+            dst++;
+        } else {
+            *dst = val << 4;
+        }
+        input++;
+        digit_cnt++;
+    }
+    return true;
+}
 
 namespace SerialCommands {
     SlimeVR::Logging::Logger logger("SerialCommands");
@@ -114,6 +152,25 @@ namespace SerialCommands {
 					WiFiNetwork::setWiFiCredentials(ssid, ppass);
 					logger.info("CMD SET BWIFI OK: New wifi credentials set, reconnecting");
 				}
+            } else if (parser->equalCmdParam(1, "ESPNOW")) {
+                if (parser->getParamCount() < 3 || !parser->equalCmdParam(2, "PEER")) {
+					logger.error("CMD SET ESPNOW ERROR: Too few arguments");
+					logger.info("Syntax: SET ESPNOW PEER <peer_macaddress>");
+                    logger.info("Example: SET ESPNOW PEER 00:aa:bb:cc:dd:ee");
+                } else {
+                    const char* macaddr_str_input = parser->getCmdParam(3);
+                    uint8_t macaddr[6] = { 0 };
+                    if (!parse_macaddr_input(macaddr_str_input, macaddr)) {
+                        logger.error("CMD SET ESPNOW PEER ERROR: parse failed.");
+                    } else {
+                        if (preferences.putBytes("PEER_MACADDR", macaddr, 6) != 6) {
+                            logger.error("CMD SET ESPNOW PEER ERROR: save failed.");
+                        } else {
+                            // FIXME: Update peer address without reset.
+                            logger.info("CMD SET ESPNOW PEER OK: New peer address set. Please reset your tracker.");
+                        }
+                    }
+                }
 			} else {
 				logger.error("CMD SET ERROR: Unrecognized variable to set");
 			}
@@ -226,6 +283,13 @@ namespace SerialCommands {
             }
         }
 
+        if (parser->equalCmdParam(1, "ESPNOW")) {
+            logger.info("ESPNOW settings:");
+            uint8_t macaddr[6] = { 0 };
+            preferences.getBytes("PEER_MACADDR", macaddr, 6);
+            Serial.printf("  peer %02x:%02x:%02x:%02x:%02x:%02x\n", macaddr[0], macaddr[1],macaddr[2],macaddr[3],macaddr[4],macaddr[5]);
+        }
+
         if (parser->equalCmdParam(1, "WIFISCAN")) {
 			logger.info("[WSCAN] Scanning for WiFi networks...");
 
@@ -281,6 +345,13 @@ namespace SerialCommands {
             return;
         #endif
 
+        #if USE_ESPNOW
+            uint8_t peer_addr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+            preferences.end();
+            preferences.begin("slimevr_espnow");
+            preferences.clear();
+        #endif
+
         #if defined(WIFI_CREDS_SSID) && defined(WIFI_CREDS_PASSWD)
             #warning FACTORY RESET does not clear your hardcoded WiFi credentials!
             logger.warn("FACTORY RESET does not clear your hardcoded WiFi credentials!");
@@ -329,6 +400,13 @@ namespace SerialCommands {
         cmdCallbacks.addCmd("FRST", &cmdFactoryReset);
         cmdCallbacks.addCmd("REBOOT", &cmdReboot);
         cmdCallbacks.addCmd("TCAL", &cmdTemperatureCalibration);
+
+        #if USE_ESPNOW
+        if (!preferences.begin("slimevr_espnow")) {
+            logger.error("Failed to begin Preferences for ESP-NOW mdoe");
+            ESP.restart();
+        }
+        #endif
     }
 
     void update() {

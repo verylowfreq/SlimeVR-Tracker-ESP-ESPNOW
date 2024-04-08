@@ -22,6 +22,7 @@
 */
 #include "manager.h"
 #include "esp_now.h"
+#include <Preferences.h>
 
 #include "GlobalVars.h"
 
@@ -48,16 +49,19 @@ void Manager::setup() {
 
 	esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_54M);
 
-	esp_now_peer_info_t peer;
-	memset(&peer, 0, sizeof(peer));
-	// FIXME: Use unicast instead of broadcast
-	for (int i = 0; i < 6; ++i) {
-		peer.peer_addr[i] = (uint8_t)0xff;
+	esp_now_peer_info_t peer = { 0 };
+	peer.channel = 1;
+	uint8_t macaddr[6] = { 0 };
+	if (preferences.getBytes("PEER_MACADDR", macaddr, 6) != 6) {
+		Serial.println("[ESPNOW] Peer MAC address not configured.");
+	} else {
+		memcpy(&peer.peer_addr, macaddr, 6);
+		Serial.printf("[ESPNOW] Peer address: %02x:%02x:%02x:%02x:%02x:%02x\n", peer.peer_addr[0],peer.peer_addr[1],peer.peer_addr[2],peer.peer_addr[3],peer.peer_addr[4],peer.peer_addr[5]);
 	}
 
 	if (esp_now_add_peer(&peer) != ESP_OK) {
 		Serial.println("Add peer for ESP-NOW failed.");
-		ESP.restart();
+		// ESP.restart();
 	}
 
 	// Transmission over ESP-NOW is always enabled.
