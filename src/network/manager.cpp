@@ -33,34 +33,34 @@ void Manager::setup() {
 	::WiFiNetwork::setUp();
 #else
 
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
+	WiFi.mode(WIFI_STA);
+	WiFi.disconnect();
 
-  WiFi.setSleep(false);
+	// FIXME: Is it really needed?
+	WiFi.setSleep(false);
 
-  if (esp_now_init() == ESP_OK) {
-    Serial.println("ESPNow Init Success");
-  } else {
-    Serial.println("ESPNow Init Failed");
-    ESP.restart();
-  }
-  
-  esp_now_peer_info_t slave;
-    // マルチキャスト用Slave登録
-  memset(&slave, 0, sizeof(slave));
-  for (int i = 0; i < 6; ++i) {
-    slave.peer_addr[i] = (uint8_t)0xff;
-  }
-  
-  esp_err_t addStatus = esp_now_add_peer(&slave);
-  if (addStatus == ESP_OK) {
-    // Pair success
-    Serial.println("Pair success");
-  }
-  // ESP-NOWコールバック登録
-  // esp_now_register_send_cb(OnDataSent);
-//   esp_now_register_recv_cb(OnDataRecv);
+	if (esp_now_init() == ESP_OK) {
+		Serial.println("ESPNow Init Success");
+	} else {
+		Serial.println("ESPNow Init Failed");
+		ESP.restart();
+	}
 
+	esp_wifi_config_espnow_rate(WIFI_IF_STA, WIFI_PHY_RATE_54M);
+
+	esp_now_peer_info_t peer;
+	memset(&peer, 0, sizeof(peer));
+	// FIXME: Use unicast instead of broadcast
+	for (int i = 0; i < 6; ++i) {
+		peer.peer_addr[i] = (uint8_t)0xff;
+	}
+
+	if (esp_now_add_peer(&peer) != ESP_OK) {
+		Serial.println("Add peer for ESP-NOW failed.");
+		ESP.restart();
+	}
+
+	// Transmission over ESP-NOW is always enabled.
 	m_IsConnected = true;
 #endif
 }
